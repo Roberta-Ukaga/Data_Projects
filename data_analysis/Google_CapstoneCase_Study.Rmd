@@ -1,0 +1,529 @@
+---
+title: "CAPSTONE PROJECT"
+author: "Adamma Roberta Ukaga"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# ASK PHASE
+
+## Deliverable: A clear statement of the business task
+
+The Director's goal is to design marketing strategies aimed at
+converting casual riders into annual members and for this to happen, we
+need to analyze how the casual and annual members differ. The
+Cyclistic's finance analysts have concluded that annual members are much
+more profitable than casual riders. N/B \* Customers who purchase
+single-ride or full-day passes are referred to as casual riders. \*
+Customers who purchase annual memberships are Cyclistic members.
+
+Problem: How to make more earnings from casual members? How to convert
+casual members to annual members?
+
+Solution: Help the organization understand the difference between casual
+and annual members
+
+Key stakeholders: Lily Moreno: The director of marketing and my manager,
+The Cyclistic marketing analytics team(my teammates), The Cyclistic
+executive team
+
+# PROCESS PHASE
+
+## Deliverable: A description of the data sources used
+
+The data is open data from the Divvy Bikes database and was made
+available by Motivate International Inc. under this license:
+<https://www.divvybikes.com/data-license-agreement> The data was
+downloaded directly from the Divvy Bikes website:
+<https://www.divvybikes.com/system-data> It's organised by month and is
+updated monthly. The data also seems to be credible and published by the
+organisation itself. (Please note that there were some anomalies in the
+data).
+
+Area of focus: For this analysis I'm going to focus on the most recent
+data ranging for 12 months: March 2021- February 2022 to research member
+performance.
+
+# PROCESS PHASE
+
+## Deliverable: Documentation of any cleaning or manipulation of data in RSTUDIO
+
+Before we begin the Process phase, we'll load our tools first for
+reading, cleaning and wrangling data
+
+```{r}
+library(tidyverse)  #from the tidy package used for data cleaning, it helps wrangle data
+library(lubridate)  #helps us deal with dates easily
+library(ggplot2)  #helps visualize data
+library(here) #a simpler way to find files
+library(skimr) #helps to flexibly summarize data
+library(janitor) #helps examine and clean data
+library(dplyr) #helps with data manipulation
+library(readr) #helps read rectangular data like csv, tsv, fwf
+getwd() #displays your working directory
+setwd('/Users/robertaukaga/Documents/RStudio') #sets your working directory to simplify calls to data 
+```
+
+# Collect and load your data
+
+### Upload Divvy datasets (csv files) here
+
+```{r}
+mar_2021 <- read_csv("202103-divvy-tripdata.csv")
+apr_2021 <- read_csv("202104-divvy-tripdata.csv")
+may_2021 <- read_csv("202105-divvy-tripdata.csv")
+jun_2021 <- read_csv("202106-divvy-tripdata.csv")
+jul_2021 <- read_csv("202107-divvy-tripdata.csv")
+aug_2021 <- read_csv("202108-divvy-tripdata.csv")
+sep_2021 <- read_csv("202109-divvy-tripdata.csv")
+oct_2021 <- read_csv("202110-divvy-tripdata.csv")
+nov_2021 <- read_csv("202111-divvy-tripdata.csv")
+dec_2021 <- read_csv("202112-divvy-tripdata.csv")
+jan_2022 <- read_csv("202201-divvy-tripdata.csv")
+feb_2022 <- read_csv("202202-divvy-tripdata.csv")
+```
+
+### Compare column names each of the files
+
+###### The names don't have to be in the same order,but the data must match before we can use a command to join them into one file
+
+```{r}
+colnames(mar_2021)
+colnames(apr_2021)
+colnames(may_2021)
+colnames(jun_2021)
+colnames(jul_2021)
+colnames(aug_2021)
+colnames(sep_2021)
+colnames(oct_2021)
+colnames(nov_2021)
+colnames(dec_2021)
+colnames(jan_2022)
+colnames(feb_2022)
+```
+
+# Review data structure
+
+###### Inspect the dataframes and look for incongruencies
+
+```{r}
+str(mar_2021)
+str(apr_2021)
+str(may_2021)
+str(jun_2021)
+str(jul_2021)
+str(aug_2021)
+str(sep_2021)
+str(oct_2021)
+str(nov_2021)
+str(dec_2021)
+str(jan_2022)
+str(feb_2022)
+```
+
+###### Merge dataframes
+
+```{r}
+Total_bike_trips <- bind_rows(mar_2021
+                              ,apr_2021
+                              ,may_2021
+                              ,jun_2021
+                              ,jul_2021
+                              ,aug_2021
+                              ,sep_2021
+                              ,oct_2021
+                              ,nov_2021
+                              ,dec_2021
+                              ,jan_2022
+                              ,feb_2022)
+```
+
+###### Let's view our dataframe(type dataframe name and hit enter)
+
+```{r}
+Total_bike_trips
+```
+
+# Clean up and prepare data for analysis
+
+###### Inspect the new table that has been created with the following functions:
+
+```{r}
+spec(Total_bike_trips) #to retrieve the full column specification for this data
+colnames(Total_bike_trips)  #List of column names
+nrow(Total_bike_trips)  #How many rows are in data frame?
+dim(Total_bike_trips)  #Dimensions of the data frame?
+head(Total_bike_trips)  #See the first 6 rows of data frame.  Also tail(all_trips)
+str(Total_bike_trips)  #See list of columns and data types (numeric, character, etc)
+summary(Total_bike_trips)  #Statistical summary of data. Mainly for numerics
+```
+
+###### A few columns were renamed
+
+```{r}
+Total_bike_trips <- rename(Total_bike_trips, bike_id=ride_id
+       ,bike_type=rideable_type
+       ,start_time=started_at
+       ,end_time=ended_at
+       ,user_type=member_casual)
+```
+
+###### Let's review our column names again
+
+```{r}
+colnames(Total_bike_trips)
+```
+
+##### There are a few things I'll need to adjust:
+
+-   Including a calculated field for the ride duration since the
+    2021-2022 data did not have a "trip duration" column.
+
+-   Including date and hour fields to check when members are busiest
+
+-   I'll search and remove rides where trip_duration shows up as
+    negative (this was because trip duration was zero, and some of the
+    bikes were recalled by the organization for quality control)
+
+-   Including columns that list the date, month, day, and year of each
+    ride. This will allow us to aggregate the ride data for each month,
+    day, or year .
+
+###### Now lets clean the data to be able to properly work with it: #Fist we will create a new dataframe (since data is being removed) and drop all NA(nulls). We'll also search for empty rows and columns using the janitor function:
+
+```{r}
+Total_bike_tripsclean <- drop_na(Total_bike_trips)
+nrow(Total_bike_tripsclean)
+dim(Total_bike_tripsclean)
+str(Total_bike_tripsclean)
+```
+
+###### PARSE DATE-TIMES
+
+###### Let's separate our dates into different columns (start_day, end_day, year and days of the week)
+
+```{r}
+Total_bike_tripsclean$start_day <- lubridate::date(Total_bike_tripsclean$start_time)
+Total_bike_tripsclean$end_day <- lubridate::date(Total_bike_tripsclean$end_time)
+
+#date data can also be pulled this way:
+Total_bike_tripsclean$date <- as.Date(Total_bike_tripsclean$start_time)
+Total_bike_tripsclean$month <- format(as.Date(Total_bike_tripsclean$date), "%m")
+Total_bike_tripsclean$year <- format(as.Date(Total_bike_tripsclean$date), "%Y")
+Total_bike_tripsclean$day_of_week <- format(as.Date(Total_bike_tripsclean$date), "%A")
+```
+
+###### Rename our months
+
+```{r}
+Total_bike_tripsclean$month <- gsub("01", "January", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("02", "February", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("03", "March", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("04", "April", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("05", "May", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("06", "June", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("07", "July", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("08", "August", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("09", "September", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("10", "October", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("11", "November", Total_bike_tripsclean$month)
+Total_bike_tripsclean$month <- gsub("12", "December", Total_bike_tripsclean$month)
+```
+
+###### Then we can create hour fields
+
+```{r}
+Total_bike_tripsclean$start_hour <- lubridate::hour(Total_bike_tripsclean$start_time)
+Total_bike_tripsclean$end_hour <- lubridate::hour(Total_bike_tripsclean$end_time)
+```
+
+###### Add a "trip_duration" calculation to Total_bike_trips (in seconds)
+
+```{r}
+Total_bike_tripsclean$trip_duration_seconds <- difftime(Total_bike_tripsclean$end_time,Total_bike_tripsclean$start_time)
+```
+
+###### I decided to add another column in minutes just to explain how it can be derived if needed.
+
+```{r}
+Total_bike_tripsclean$trip_duration_minutes <- Total_bike_tripsclean$trip_duration_seconds/60
+```
+
+###### Install and load packages
+
+```{r}
+ #helps calculate distances
+library(geosphere)
+library(oce)
+```
+
+###### Then the ride distance traveled in km
+
+```{r}
+Total_bike_tripsclean$ride_distance <- distGeo(matrix(c(Total_bike_tripsclean$start_lng, Total_bike_tripsclean$start_lat), ncol = 2), matrix(c(Total_bike_tripsclean$end_lng, Total_bike_tripsclean$end_lat), ncol = 2))
+Total_bike_tripsclean$ride_distance <- Total_bike_tripsclean$ride_distance/1000
+```
+
+###### At last the speed in Km/h
+
+```{r}
+Total_bike_tripsclean$ride_speed = c(Total_bike_tripsclean$ride_distance)/as.numeric(c(Total_bike_tripsclean$trip_duration_seconds), units="hours")
+```
+
+###### Inspect the structure of the columns again
+
+```{r}
+str(Total_bike_tripsclean)
+```
+
+###### The dataframe includes a few hundred entries when bikes were taken out of docks and checked for quality by Divvy or trip_duration was negative
+
+```{r}
+Total_bike_tripsclean <- Total_bike_tripsclean[!(Total_bike_tripsclean$start_station_name == "HQ QR" | Total_bike_tripsclean$trip_duration_seconds<=0),]
+```
+
+# ANALYSIS PHASE
+
+## Deliverable: Descriptive analysis on trip_duration (all figures in seconds)
+
+```{r}
+mean(Total_bike_tripsclean$trip_duration_seconds) #straight average (total ride length / rides)
+median(Total_bike_tripsclean$trip_duration_seconds) #midpoint number in the ascending array of ride lengths
+max(Total_bike_tripsclean$trip_duration_seconds) #longest ride
+min(Total_bike_tripsclean$trip_duration_seconds) #shortest ride
+```
+
+###### Descriptive analysis on ride_length (all figures in minutes)
+
+```{r}
+mean(Total_bike_tripsclean$trip_duration_minutes)
+median(Total_bike_tripsclean$trip_duration_minutes)
+max(Total_bike_tripsclean$trip_duration_minutes)
+min(Total_bike_tripsclean$trip_duration_minutes)
+```
+
+###### You can summarize the four lines above to one line using summary() on the specific attribute
+
+```{r}
+summary(Total_bike_tripsclean$trip_duration_seconds) #seconds
+summary(Total_bike_tripsclean$trip_duration_minutes) #minutes
+```
+
+###### Compare members and casual users
+
+```{r}
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type, FUN = mean)
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type, FUN = median)
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type, FUN = max)
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type, FUN = min)
+```
+
+###### Before calculating, we should ensure that our days of the week appear in order
+
+```{r}
+Total_bike_tripsclean$day_of_week <- ordered(Total_bike_tripsclean$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+###### Let's do the same for months. Remember that 2021 data begins March 2021 - February 2022
+
+```{r}
+Total_bike_tripsclean$month <- ordered(Total_bike_tripsclean$month, levels=c("March","April","May","June","July","August","September","October","November","December","January","February"))
+```
+
+###### Now, let's run the average ride time by each day for members vs casual users - days of the week
+
+```{r}
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type + Total_bike_tripsclean$day_of_week, FUN = mean)
+```
+
+###### Now, let's run the average ride time by each month for members vs casual users - monthly
+
+```{r}
+aggregate(Total_bike_tripsclean$trip_duration_seconds ~ Total_bike_tripsclean$user_type + Total_bike_tripsclean$month, FUN = mean)
+```
+
+###### First we calculate the average distance, distance for both the casual and member type users:
+
+```{r}
+UserType_AvgTime <- Total_bike_tripsclean %>%
+  group_by(user_type) %>%
+  summarise(mean_time = mean(trip_duration_seconds) 	
+            ,mean_distance = mean(trip_duration_seconds))
+```
+
+###### Analyze ridership data by type and weekday
+
+```{r}
+ridership <- Total_bike_tripsclean %>% 
+  mutate(day_of_week = wday(start_time, label = TRUE)) %>%
+  group_by(user_type, day_of_week) %>%  #groups by usertype and weekday
+  summarise(number_of_rides = n()							#calculates the number of rides and average duration 
+            ,average_duration = mean(trip_duration_seconds)) %>% 		# calculates the average duration
+  arrange(user_type, day_of_week)								# sorts
+```
+
+###### Analyze bike type/preference and duration by user_type
+
+```{r}
+bike_vs_user <- Total_bike_tripsclean %>% 
+  group_by(user_type, bike_type) %>%  #groups by usertype and bike preference
+  summarise(number_of_rides = n()							#calculates the number of rides and average duration 
+            ,average_duration = mean(trip_duration_seconds)) %>% 		# calculates the average duration
+  arrange(user_type, bike_type)	
+```
+
+###### Analyze bike type/preference and duration per week
+
+```{r}
+bike_vs_weekday <- Total_bike_tripsclean %>% 
+  group_by(day_of_week, bike_type) %>%  #groups by usertype and bike preference
+  summarise(number_of_rides = n()							#calculates the number of rides and average duration 
+            ,average_duration = mean(trip_duration_seconds)) %>% 		# calculates the average duration
+  arrange(day_of_week, bike_type)
+```
+
+# VISUALISATION/SHARE PHASE
+
+```{r}
+# 1. Trip duration measured by user type
+member_vs_duration <- ggplot(UserType_AvgTime) + 
+  geom_col(mapping=aes(x=user_type,y=mean_time,fill=user_type), show.legend = FALSE)+
+  labs(title = "Average Time by User Type",x="User Type",y="Average time in sec",caption = "Viz by Cyclistic Marketing Analyst Team")
+```
+
+###### Viz
+
+```{r}
+ggplot(UserType_AvgTime) + 
+  geom_col(mapping=aes(x=user_type,y=mean_time,fill=user_type), show.legend = FALSE)+
+  labs(title = "Average Travel Time by User Type",x="User Type",y="Average time in sec",caption = "Viz by Cyclistic Marketing Analyst Team")
+```
+
+```{r}
+# 2. Trip distance measured by user type
+member_vs_distance <- ggplot(UserType_AvgTime) + 
+  geom_col(mapping=aes(x=user_type,y=mean_distance,fill=user_type), show.legend = FALSE)+
+  labs(title = "Average Distance by User type",x="User Type",y="Mean distance In Km",caption = "Viz by Cyclistic Marketing Analyst Team")
+```
+
+###### Viz
+
+```{r}
+ggplot(UserType_AvgTime) + 
+  geom_col(mapping=aes(x=user_type,y=mean_distance,fill=user_type), show.legend = FALSE)+
+  labs(title = "Average Distance by User type",x="User Type",y="Mean distance In Km",caption = "Viz by Cyclistic Marketing Analyst Team")
+```
+
+FYI The grid package provides low-level functions to create graphical
+objects (grobs), and position them on a page in specific viewports. The
+gtable package introduced a higher-level layout scheme,With the
+arrangeGrob/grid.arrange() pair of functions, gridExtra builds upon
+gtable to arrange multiple grobs on a page. The scales function helps to
+format your labels on your x and y axis
+[source](https://cran.r-project.org/web/packages/gridExtra/vignettes/arrangeGrob.html)
+
+```{r}
+library(gridExtra)
+library(grid)
+library(gtable)
+library(lattice)
+library(scales)
+```
+
+###### Helps layout multiple plots on a page
+
+```{r}
+grid.arrange(member_vs_duration, member_vs_distance, ncol = 2)
+```
+
+###### Let's visualize the Average duration by user type
+
+```{r}
+Total_bike_tripsclean %>% 
+  mutate(day_of_week = wday(start_time, label = TRUE)) %>% 
+  group_by(user_type, day_of_week) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(trip_duration_seconds),.groups = 'drop') %>% 
+  arrange(user_type, day_of_week)  %>% 
+  ggplot(aes(x = day_of_week, y = number_of_rides, fill = user_type)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Average Trip Duration by User Type during the week",x="Days of the week",y="Number of rides",caption = "Viz by Cyclistic Marketing Analyst Team", fill="User type") +
+  theme(legend.position="top")
+```
+
+###### We can check the number of rides differences by month:JAN-FEB 2022 AND MARCH - DEC 2021
+
+```{r}
+Total_bike_tripsclean %>% 
+  mutate(month = month(start_time, label = TRUE)) %>% 
+  group_by(user_type, month) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(trip_duration_seconds),.groups = 'drop') %>% 
+  arrange(user_type, month)  %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = user_type)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = comma) +
+  scale_x_discrete(limits = month.abb) +
+  labs(title = "Monthly Rides by User Type",x="Month",y="Number of rides",caption = "Viz by Cyclistic Marketing Analyst Team", fill="User type") +
+  theme(legend.position="top")
+```
+
+###### Let's visualize the number of rides by bike type per week
+
+```{r}
+Total_bike_tripsclean %>% 
+  mutate(day_of_week = wday(start_time, label = TRUE)) %>% 
+  group_by(bike_type, day_of_week) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(trip_duration_seconds),.groups = 'drop') %>% 
+  arrange(bike_type, day_of_week)  %>% 
+  ggplot(aes(x = day_of_week, y = number_of_rides, fill = bike_type)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Bike Weekly Usage",x="Days of the week",y="Number of rides",caption = "Viz by Cyclistic Marketing Analyst Team", fill="Bike type") +
+  theme(legend.position="top")
+```
+
+###### Let's visualize the number of rides by bike type per month
+
+```{r}
+Total_bike_tripsclean %>% 
+  mutate(month = month(start_time, label = TRUE)) %>% 
+  group_by(bike_type, month) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(trip_duration_seconds),.groups = 'drop') %>% 
+  arrange(bike_type, month)  %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = bike_type)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Bike Monthly Usage",x="Month (Jan-Feb 2022, Mar-Dec 2021",y="Number of rides",caption = "Viz by Cyclistic Marketing Analyst Team", fill="Bike Type") +
+  theme(legend.position="top")
+```
+
+###### Bike rides per
+
+```{r}
+Total_bike_tripsclean %>% count(start_hour, sort = TRUE)
+```
+
+```{r}
+Total_bike_tripsclean %>% count(start_hour, sort = TRUE) %>% 
+  ggplot() + geom_line(aes(x=start_hour, y=n)) +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(limits = c(1, 24)) +
+  labs(title="Bike rides per hour", x="Start Hour of Rides", y="Ride Count")
+```
+
+Export your file. Please note that this line would work for macOS
+
+```{r}
+write.csv(Total_bike_tripsclean, file = '~/Documents/RStudio/Divvy/Total_bike_tripsclean.csv')
+```
+
+## THANK YOU AND PLEASE CRITICISE MY WORK
