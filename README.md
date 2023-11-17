@@ -2,4 +2,4 @@
 
 
 # Data_projects
-Compilation of projects, data visualizations and assignments that I have worked on during my learning process.
+I have compiled a collection of projects, data visualizations, and workbooks I utilized while learning. These resources demonstrate my knowledge and growth in Python, SQL and Excel.
